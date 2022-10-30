@@ -26,7 +26,7 @@ public:
 
 		auto image = m_Renderer.GetFinalImage();
 		if (image)
-			ImGui::Image(image->GetDescriptorSet(), { (float)image->GetWidth(), (float)image->GetHeight() });
+			ImGui::Image(image->GetDescriptorSet(), { (float)image->GetWidth(), (float)image->GetHeight() }, ImVec2(0, 1), ImVec2(1, 0));
 
 		ImGui::End();
 		ImGui::PopStyleVar();
@@ -55,7 +55,7 @@ private:
 Walnut::Application* Walnut::CreateApplication(int argc, char** argv)
 {
 	Walnut::ApplicationSpecification spec;
-	spec.Name = "Walnut Example";
+	spec.Name = "Ray Tracing";
 
 	Walnut::Application* app = new Walnut::Application(spec);
 	app->PushLayer<ExampleLayer>();

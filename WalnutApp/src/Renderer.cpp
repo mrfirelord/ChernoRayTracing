@@ -25,29 +25,28 @@ void Renderer::OnResize(uint32_t width, uint32_t height) {
 	m_ImageData = new uint32_t[width * height];
 }
 
-void Renderer::Render() {
+void Renderer::Render(const Camera& camera) {
 	uint32_t height = m_FinalImage->GetHeight();
 	uint32_t width = m_FinalImage->GetWidth();
 	glm::vec3 lightDir(-1, -1, -1);
 
+	Ray ray;
+	ray.Origin = camera.GetPosition();
+
 	for (uint32_t y = 0; y < height; y++) {
 		for (uint32_t x = 0; x < width; x++) {
-			glm::vec2 coord = { (float)x / width, (float)y / height };
-			coord = coord * 2.0f - 1.0f; // [0,1] -> [-1,1]
-			glm::vec4 color = PerPixel(coord, lightDir);
+			ray.Direction = camera.GetRayDirections()[x + y * width];
+			glm::vec4 color = TraceRay(ray, lightDir);
 			color = glm::clamp(color, glm::vec4(0.0f), glm::vec4(1.0f));
-			m_ImageData[y * width + x] = Utils::ConvertToRGBA(color);
+			m_ImageData[x + y * m_FinalImage->GetWidth()] = Utils::ConvertToRGBA(color);
 		}
 	}
 
 	m_FinalImage->SetData(m_ImageData);
 }
 
-glm::vec4 Renderer::PerPixel(glm::vec2 coord, const glm::vec3& lightDir) {
-	glm::vec3 rayOrigin(0.0f, 0.0f, 1.0f); // ray origin. 
-	glm::vec3 rayDirection(coord.x, coord.y, -1.0f); // ray direction
-	rayDirection = glm::normalize(rayDirection);
-	float radius = 0.5f;
+glm::vec4 Renderer::TraceRay(const Ray& ray, const glm::vec3& lightDir) {
+	float radius = 0.2f;
 
 	// RD = Ray Direction. RDx, RDy, RDz - x,y and z components of ray direction respectively
 	// RO - Ray Origin. ROx, ROy, ROz - x,y and z components of ray origin respectively
@@ -56,9 +55,9 @@ glm::vec4 Renderer::PerPixel(glm::vec2 coord, const glm::vec3& lightDir) {
 	// r = radius
 	// t = hit distance
 
-	float a = glm::dot(rayDirection, rayDirection);
-	float b = 2.0f * glm::dot(rayOrigin, rayDirection);
-	float c = glm::dot(rayOrigin, rayOrigin) - radius * radius;
+	float a = glm::dot(ray.Direction, ray.Direction);
+	float b = 2.0f * glm::dot(ray.Origin, ray.Direction);
+	float c = glm::dot(ray.Origin, ray.Origin) - radius * radius;
 
 	// Quadratic formula discriminant:
 	// b^2-4ac
@@ -73,7 +72,7 @@ glm::vec4 Renderer::PerPixel(glm::vec2 coord, const glm::vec3& lightDir) {
 	float closestT = (-b - glm::sqrt(discriminant)) / (2.0f * a);
 	float t0 = (-b + glm::sqrt(discriminant)) / (2.0f * a); // Second hit distance (currently unused)
 
-	glm::vec3 hitPoint = rayOrigin + rayDirection * closestT;
+	glm::vec3 hitPoint = ray.Origin + ray.Direction * closestT;
 	glm::vec3 normal = glm::normalize(hitPoint);
 
 	float lightIntensity = glm::dot(normal, -lightDir); // == cos(angle)

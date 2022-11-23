@@ -34,6 +34,9 @@ void Renderer::OnResize(uint32_t width, uint32_t height)
 
 	delete[] m_ImageData;
 	m_ImageData = new uint32_t[width * height];
+
+	delete[] accumulationData;
+	accumulationData = new glm::vec4[width * height];
 }
 
 void Renderer::Render(const Scene& scene, const Camera& camera)
@@ -41,17 +44,30 @@ void Renderer::Render(const Scene& scene, const Camera& camera)
 	m_ActiveCamera = &camera;
 	m_ActiveScene = &scene;
 
+	if (frameIndex == 1)
+		memset(accumulationData, 0, sizeof(glm::vec4) * m_FinalImage->GetWidth() * m_FinalImage->GetHeight());
+
 	for (uint32_t y = 0; y < m_FinalImage->GetHeight(); y++)
 	{
 		for (uint32_t x = 0; x < m_FinalImage->GetWidth(); x++)
 		{
 			glm::vec4 color = PerPixel(x, y);
-			color = glm::clamp(color, glm::vec4(0.0f), glm::vec4(1.0f));
-			m_ImageData[x + y * m_FinalImage->GetWidth()] = Utils::ConvertToRGBA(color);
+			accumulationData[x + y * m_FinalImage->GetWidth()] += color;
+
+			glm::vec4 accumulatedColor = accumulationData[x + y * m_FinalImage->GetWidth()];
+			accumulatedColor /= (float)frameIndex;
+
+			accumulatedColor = glm::clamp(accumulatedColor, glm::vec4(0.0f), glm::vec4(1.0f));
+			m_ImageData[x + y * m_FinalImage->GetWidth()] = Utils::ConvertToRGBA(accumulatedColor);
 		}
 	}
 
 	m_FinalImage->SetData(m_ImageData);
+
+	if (setting.accumulate)
+		frameIndex++;
+	else
+		frameIndex = 1;
 }
 
 glm::vec4 Renderer::PerPixel(uint32_t x, uint32_t y)
@@ -138,9 +154,9 @@ Renderer::HitPayload Renderer::TraceRay(const Ray& ray) {
 }
 
 Renderer::HitPayload Renderer::ClosestHit(const Ray& ray, float hitDistance, int objectIndex) {
-	const Sphere& closestSphere = m_ActiveScene->Spheres[objectIndex];
+	const Sphere& sphere = m_ActiveScene->Spheres[objectIndex];
 	// origin in sphere coornidate system
-	glm::vec3 origin = ray.Origin - closestSphere.Position;
+	glm::vec3 origin = ray.Origin - sphere.Position;
 
 	// hit point in sphere coornidate system
 	glm::vec3 hitPoint = origin + ray.Direction * hitDistance;
@@ -150,7 +166,7 @@ Renderer::HitPayload Renderer::ClosestHit(const Ray& ray, float hitDistance, int
 	payload.ObjectIndex = objectIndex;
 
 	payload.WorldNormal = glm::normalize(hitPoint);
-	payload.WorldPosition = hitPoint + closestSphere.Position;
+	payload.WorldPosition = hitPoint + sphere.Position;
 
 	return payload;
 }

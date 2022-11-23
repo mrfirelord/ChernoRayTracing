@@ -42,7 +42,8 @@ public:
 
 	virtual void OnUpdate(float ts) override
 	{
-		m_Camera.OnUpdate(ts);
+		if (m_Camera.OnUpdate(ts))
+			m_Renderer.ResetFrameIndex();
 	}
 
 	virtual void OnUIRender() override
@@ -50,9 +51,13 @@ public:
 		ImGui::Begin("Settings");
 		ImGui::Text("Last render: %.3fms", m_LastRenderTime);
 		if (ImGui::Button("Render"))
-		{
 			Render();
-		}
+
+		ImGui::Checkbox("Accumulate", &m_Renderer.GetSettings().accumulate);
+
+		if (ImGui::Button("Reset"))
+			m_Renderer.ResetFrameIndex();
+
 		ImGui::End();
 
 		ImGui::Begin("Scene");
@@ -71,13 +76,13 @@ public:
 
 		for (size_t i = 0; i < m_Scene.materials.size(); i++) {
 			ImGui::PushID(i);
-			Material material = m_Scene.materials[i];
+
+			Material& material = m_Scene.materials[i];
 			ImGui::ColorEdit3("Albedo", glm::value_ptr(material.Albedo));
 			ImGui::DragFloat("Roughness", &material.roughness, 0.05f, 0.0f, 1.0f);
 			ImGui::DragFloat("Metallic", &material.Metallic, 0.05f, 0.0f, 1.0f);
-
-
 			ImGui::Separator();
+			
 			ImGui::PopID();
 		}
 
@@ -115,7 +120,6 @@ private:
 	Camera m_Camera;
 	Scene m_Scene;
 	uint32_t m_ViewportWidth = 0, m_ViewportHeight = 0;
-
 	float m_LastRenderTime = 0.0f;
 };
 

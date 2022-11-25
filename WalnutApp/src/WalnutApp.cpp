@@ -67,6 +67,7 @@ public:
 
 			Sphere& sphere = m_Scene.Spheres[i];
 			ImGui::DragFloat3("Position", glm::value_ptr(sphere.Position), 0.1f);
+			ImGui::DragFloat("Phi", &sphere.maxPhi, 0.05f, 0.0f, 1.0f);
 			ImGui::DragFloat("Radius", &sphere.radius, 0.1f);
 			ImGui::DragInt("Material", &sphere.materialIndex, 1, 0, m_Scene.materials.size() - 1);
 			ImGui::Separator();

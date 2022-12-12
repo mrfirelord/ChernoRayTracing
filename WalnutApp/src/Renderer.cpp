@@ -226,24 +226,6 @@ Renderer::HitPayload Renderer::findRayParameterFromHit(const Ray& ray, const Sph
 	return payload;
 }
 
-Renderer::HitPayload Renderer::ClosestHit(const Ray& ray, float hitDistance, int objectIndex) {
-	Shape* shape = m_ActiveScene->shapes[objectIndex];
-	// origin in object coornidate system
-	glm::vec3 origin = ray.Origin - shape->Position;
-
-	// hit point in sphere coornidate system
-	glm::vec3 hitPoint = origin + ray.Direction * hitDistance;
-
-	Renderer::HitPayload payload;
-	payload.HitDistance = hitDistance;
-	payload.ObjectIndex = objectIndex;
-
-	payload.WorldNormal = glm::normalize(hitPoint);
-	payload.WorldPosition = hitPoint + shape->Position;
-
-	return payload;
-}
-
 Renderer::HitPayload Renderer::Miss(const Ray& ray) {
 	Renderer::HitPayload payload;
 	payload.HitDistance = -1.0f;

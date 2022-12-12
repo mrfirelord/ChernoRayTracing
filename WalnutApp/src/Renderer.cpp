@@ -18,18 +18,15 @@ namespace Utils {
 static float PI = 3.14159265358979323846264338327950288;
 static float TWO_PI = 2 * PI;
 
-void Renderer::OnResize(uint32_t width, uint32_t height)
-{
-	if (m_FinalImage)
-	{
+void Renderer::OnResize(uint32_t width, uint32_t height) {
+	if (m_FinalImage) {
 		// No resize necessary
 		if (m_FinalImage->GetWidth() == width && m_FinalImage->GetHeight() == height)
 			return;
 
 		m_FinalImage->Resize(width, height);
 	}
-	else
-	{
+	else {
 		m_FinalImage = std::make_shared<Walnut::Image>(width, height, Walnut::ImageFormat::RGBA);
 	}
 
@@ -48,10 +45,8 @@ void Renderer::Render(const Scene& scene, const Camera& camera)
 	if (frameIndex == 1)
 		memset(accumulationData, 0, sizeof(glm::vec4) * m_FinalImage->GetWidth() * m_FinalImage->GetHeight());
 
-	for (uint32_t y = 0; y < m_FinalImage->GetHeight(); y++)
-	{
-		for (uint32_t x = 0; x < m_FinalImage->GetWidth(); x++)
-		{
+	for (uint32_t y = 0; y < m_FinalImage->GetHeight(); y++) {
+		for (uint32_t x = 0; x < m_FinalImage->GetWidth(); x++) {
 			glm::vec4 color = PerPixel(x, y);
 			accumulationData[x + y * m_FinalImage->GetWidth()] += color;
 
@@ -92,8 +87,8 @@ glm::vec4 Renderer::PerPixel(uint32_t x, uint32_t y)
 		glm::vec3 lightDir = glm::normalize(glm::vec3(-1, -1, -1));
 		float lightIntensity = glm::max(glm::dot(payload.WorldNormal, -lightDir), 0.0f); // == cos(angle)
 
-		const Sphere& sphere = m_ActiveScene->Spheres[payload.ObjectIndex];
-		const Material& material = m_ActiveScene->materials[sphere.materialIndex];
+		Shape* shape = m_ActiveScene->shapes[payload.ObjectIndex];
+		const Material& material = m_ActiveScene->materials[shape->materialIndex];
 
 		glm::vec3 sphereColor = material.Albedo;
 		sphereColor *= lightIntensity;
@@ -109,84 +104,132 @@ glm::vec4 Renderer::PerPixel(uint32_t x, uint32_t y)
 }
 
 Renderer::HitPayload Renderer::TraceRay(const Ray& ray) {
-	// (bx^2 + by^2)t^2 + (2(axbx + ayby))t + (ax^2 + ay^2 - r^2) = 0
-	// where
-	// a = ray origin
-	// b = ray direction
-	// r = radius
-	// t = hit distance
-
-	int closestSphere = -1;
+	Renderer::HitPayload closestHitPayload;
 	float hitDistance = std::numeric_limits<float>::max();
 
-	for (size_t i = 0; i < m_ActiveScene->Spheres.size(); i++) {
-		const Sphere& sphere = m_ActiveScene->Spheres[i];
-
-		// ray.Origin represents world coordinate system. To find a hit we need to convert ray coordinates to object coordinate
-		// origin is the ray origin but in object coordinate system
-		glm::vec3 origin = ray.Origin - sphere.Position;
-
-		float a = glm::dot(ray.Direction, ray.Direction);
-		float b = 2.0f * glm::dot(origin, ray.Direction);
-		float c = glm::dot(origin, origin) - sphere.radius * sphere.radius;
-
-		// Quadratic forumula discriminant:
-		// b^2 - 4ac
-
-		float discriminant = b * b - 4.0f * a * c;
-		if (discriminant < 0.0f)
-			continue;
-
-		// Quadratic formula:
-		// (-b +- sqrt(discriminant)) / 2a
-		float closestT = (-b - glm::sqrt(discriminant)) / (2.0f * a);
-		float t1 = (-b + glm::sqrt(discriminant)) / (2.0f * a);
-
-		glm::vec3 hitPoint = origin + ray.Direction * closestT;
-
-		if (hitPoint.x == 0 && hitPoint.z == 0)
-			hitPoint.x = 1e-5f * sphere.radius;
-
-		float phi = std::atan2(hitPoint.z, hitPoint.x);
-		if (phi < 0) 
-			phi += TWO_PI;
-		phi = phi / TWO_PI;
-
-		if (phi > sphere.maxPhi) {
-			if (closestT == t1)
+	for (size_t i = 0; i < m_ActiveScene->shapes.size(); i++) {
+		Shape* shape = m_ActiveScene->shapes[i];
+		Renderer::HitPayload hitPayload;
+		if (shape->type == CYLINDER) {
+			const Cylinder& cylinder = *((Cylinder*)shape);
+			hitPayload = findRayParameterFromHit(ray, cylinder, i);
+			if (hitPayload.HitDistance == -1)
 				continue;
-
-			closestT = t1;
-			hitPoint = origin + ray.Direction * closestT;
-
-			if (hitPoint.x == 0 && hitPoint.z == 0)
-				hitPoint.x = 1e-5f * sphere.radius;
-
-			float phi = std::atan2(hitPoint.z, hitPoint.x);
-			if (phi < 0) 
-				phi += TWO_PI;
-			phi = phi / TWO_PI;
-
-			if (phi > sphere.maxPhi)
+		}
+		else if (shape->type == SPHERE) {
+			const Sphere& sphere = *((Sphere*)shape);
+			hitPayload = findRayParameterFromHit(ray, sphere, i);
+			if (hitPayload.HitDistance == -1)
 				continue;
 		}
 
-		if (closestT > 0 && closestT < hitDistance) {
-			hitDistance = closestT;
-			closestSphere = i;
+		if (hitPayload.HitDistance > 0 && hitPayload.HitDistance < hitDistance) {
+			hitDistance = hitPayload.HitDistance;
+			closestHitPayload = hitPayload;
 		}
 	}
 
-	if (closestSphere < 0)
+	if (closestHitPayload.HitDistance < 0)
 		return Miss(ray);
 
-	return ClosestHit(ray, hitDistance, closestSphere);
+	return closestHitPayload;
+}
+
+Renderer::HitPayload Renderer::findRayParameterFromHit(const Ray& ray, const Cylinder& cylinder, size_t objectIndex) {
+	// ray.Origin represents world coordinate system. To find a hit we need to convert ray coordinates to object coordinate
+	// origin is the ray origin but in object coordinate system
+	glm::vec3 origin = ray.Origin - cylinder.Position;
+
+	float a = ray.Direction.x * ray.Direction.x + ray.Direction.z * ray.Direction.z;
+	float b = 2.0f * (ray.Direction.x * ray.Origin.x + ray.Direction.z * ray.Origin.z);
+	float c = ray.Origin.x * ray.Origin.x + ray.Origin.z * ray.Origin.z - cylinder.radius * cylinder.radius;
+
+	// Quadratic forumula discriminant:
+	// b^2 - 4ac
+
+	float discriminant = b * b - 4.0f * a * c;
+	if (discriminant < 0.0f)
+		return Renderer::HitPayload();
+
+	// Quadratic formula:
+	// (-b +- sqrt(discriminant)) / 2a
+	float hitDistance = (-b - glm::sqrt(discriminant)) / (2.0f * a);
+	glm::vec3 hitPoint = origin + ray.Direction * hitDistance;
+	bool rayTouchesTheSide = true;
+
+	Renderer::HitPayload payload;
+	payload.ObjectIndex = objectIndex;
+	if (hitPoint.y > cylinder.yMax) {
+		float t1 = (-b + glm::sqrt(discriminant)) / (2.0f * a);
+		glm::vec3 hitPointAtT1 = origin + ray.Direction * t1;
+		// we reached the top 
+		if (hitPointAtT1.y < cylinder.yMax) {
+			hitDistance = (cylinder.yMax - ray.Origin.y) / ray.Direction.y;
+			payload.WorldNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+			rayTouchesTheSide = false;
+		}
+		else {
+			return payload;
+		}
+	}
+	else if (hitPoint.y < cylinder.yMin) {
+		float t1 = (-b + glm::sqrt(discriminant)) / (2.0f * a);
+		glm::vec3 hitPointAtT1 = origin + ray.Direction * t1;
+		// we reached the bottom 
+		if (hitPointAtT1.y > cylinder.yMin) {
+			hitDistance = (cylinder.yMin - ray.Origin.y) / ray.Direction.y;
+			payload.WorldNormal = glm::vec3(0.0f, -1.0f, 0.0f);
+			rayTouchesTheSide = false;
+		}
+		else {
+			return payload;
+		}
+	}
+
+	hitPoint = origin + ray.Direction * hitDistance;
+
+	payload.HitDistance = hitDistance;
+
+	if (rayTouchesTheSide)
+		payload.WorldNormal = glm::normalize(glm::vec3(hitPoint.x, 0, hitPoint.z));
+	payload.WorldPosition = hitPoint + cylinder.Position;
+
+	return payload;
+}
+
+Renderer::HitPayload Renderer::findRayParameterFromHit(const Ray& ray, const Sphere& sphere, size_t objectIndex) {
+	// ray.Origin represents world coordinate system. To find a hit we need to convert ray coordinates to object coordinate
+	// origin is the ray origin but in object coordinate system
+	glm::vec3 origin = ray.Origin - sphere.Position;
+
+	float a = glm::dot(ray.Direction, ray.Direction);
+	float b = 2.0f * glm::dot(origin, ray.Direction);
+	float c = glm::dot(origin, origin) - sphere.radius * sphere.radius;
+
+	float discriminant = b * b - 4.0f * a * c;
+	float hitDistance = discriminant >= 0.0f ? (-b - glm::sqrt(discriminant)) / (2.0f * a) : -1.0f;
+
+	Renderer::HitPayload payload;
+	if (hitDistance < 0) {
+		Renderer::HitPayload payload;
+		payload.HitDistance = hitDistance;
+		return payload;
+	}
+
+	glm::vec3 hitPoint = origin + ray.Direction * hitDistance;
+
+	payload.HitDistance = hitDistance;
+	payload.ObjectIndex = objectIndex;
+	payload.WorldNormal = glm::normalize(hitPoint);
+	payload.WorldPosition = hitPoint + sphere.Position;
+
+	return payload;
 }
 
 Renderer::HitPayload Renderer::ClosestHit(const Ray& ray, float hitDistance, int objectIndex) {
-	const Sphere& sphere = m_ActiveScene->Spheres[objectIndex];
-	// origin in sphere coornidate system
-	glm::vec3 origin = ray.Origin - sphere.Position;
+	Shape* shape = m_ActiveScene->shapes[objectIndex];
+	// origin in object coornidate system
+	glm::vec3 origin = ray.Origin - shape->Position;
 
 	// hit point in sphere coornidate system
 	glm::vec3 hitPoint = origin + ray.Direction * hitDistance;
@@ -196,13 +239,12 @@ Renderer::HitPayload Renderer::ClosestHit(const Ray& ray, float hitDistance, int
 	payload.ObjectIndex = objectIndex;
 
 	payload.WorldNormal = glm::normalize(hitPoint);
-	payload.WorldPosition = hitPoint + sphere.Position;
+	payload.WorldPosition = hitPoint + shape->Position;
 
 	return payload;
 }
 
-Renderer::HitPayload Renderer::Miss(const Ray& ray)
-{
+Renderer::HitPayload Renderer::Miss(const Ray& ray) {
 	Renderer::HitPayload payload;
 	payload.HitDistance = -1.0f;
 	return payload;

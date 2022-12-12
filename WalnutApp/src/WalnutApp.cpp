@@ -24,20 +24,30 @@ public:
 		blueSphere.roughness = 0.1f;
 
 		{
-			Sphere sphere;
-			sphere.Position = { 0.0f, 0.0f, 0.0f };
-			sphere.radius = 1.0f;
-			sphere.materialIndex = 0;
-			m_Scene.Spheres.push_back(sphere);
+			Sphere* sphere = new Sphere();
+			sphere->Position = { 1.0f, 0.5f, -1.0f };
+			sphere->radius = 0.5f;
+			sphere->materialIndex = 0;
+			m_Scene.shapes.push_back(sphere);
 		}
 
 		{
-			Sphere sphere;
-			sphere.Position = { 0.0f, -101.0f, 0.0f };
-			sphere.radius = 100.0f;
-			sphere.materialIndex = 1;
-			m_Scene.Spheres.push_back(sphere);
+			Sphere* sphere = new Sphere();
+			sphere->Position = { 0.0f, -101.0f, 0.0f };
+			sphere->radius = 100.0f;
+			sphere->materialIndex = 1;
+			m_Scene.shapes.push_back(sphere);
 		}
+
+		/*{
+			Cylinder* cylinder = new Cylinder();
+			cylinder->Position = { 1.0f, 0.5f, -2.0f };
+			cylinder->radius = 0.3f;
+			cylinder->materialIndex = 0;
+			cylinder->yMin = 0.2f;
+			cylinder->yMax = 1.5f;
+			m_Scene.shapes.push_back(cylinder);
+		}*/
 	}
 
 	virtual void OnUpdate(float ts) override
@@ -83,7 +93,7 @@ public:
 			ImGui::DragFloat("Roughness", &material.roughness, 0.05f, 0.0f, 1.0f);
 			ImGui::DragFloat("Metallic", &material.Metallic, 0.05f, 0.0f, 1.0f);
 			ImGui::Separator();
-			
+
 			ImGui::PopID();
 		}
 

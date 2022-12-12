@@ -33,7 +33,7 @@ public:
 private:
 	struct HitPayload {
 		// Represents t in equation O + tD, where O - Ray Origin, D - Ray Direction
-		float HitDistance;
+		float HitDistance = -1.0f;
 		glm::vec3 WorldPosition;
 		glm::vec3 WorldNormal;
 
@@ -43,6 +43,8 @@ private:
 	glm::vec4 PerPixel(uint32_t x, uint32_t y); // RayGen
 
 	HitPayload TraceRay(const Ray& ray);
+	HitPayload findRayParameterFromHit(const Ray& ray, const Cylinder& cylinder, size_t objectIndex);
+	HitPayload findRayParameterFromHit(const Ray& ray, const Sphere& sphere, size_t objectIndex);
 	HitPayload ClosestHit(const Ray& ray, float hitDistance, int objectIndex);
 	HitPayload Miss(const Ray& ray);
 private:

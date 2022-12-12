@@ -3,8 +3,7 @@
 #include "Walnut/Random.h"
 
 namespace Utils {
-	static uint32_t ConvertToRGBA(const glm::vec4& color)
-	{
+	static uint32_t ConvertToRGBA(const glm::vec4& color) {
 		uint8_t r = (uint8_t)(color.r * 255.0f);
 		uint8_t g = (uint8_t)(color.g * 255.0f);
 		uint8_t b = (uint8_t)(color.b * 255.0f);
@@ -15,9 +14,6 @@ namespace Utils {
 	}
 }
 
-static float PI = 3.14159265358979323846264338327950288;
-static float TWO_PI = 2 * PI;
-
 void Renderer::OnResize(uint32_t width, uint32_t height) {
 	if (m_FinalImage) {
 		// No resize necessary
@@ -25,8 +21,7 @@ void Renderer::OnResize(uint32_t width, uint32_t height) {
 			return;
 
 		m_FinalImage->Resize(width, height);
-	}
-	else {
+	} else {
 		m_FinalImage = std::make_shared<Walnut::Image>(width, height, Walnut::ImageFormat::RGBA);
 	}
 
@@ -37,13 +32,14 @@ void Renderer::OnResize(uint32_t width, uint32_t height) {
 	accumulationData = new glm::vec4[width * height];
 }
 
-void Renderer::Render(const Scene& scene, const Camera& camera)
-{
+void Renderer::Render(const Scene& scene, const Camera& camera) {
 	m_ActiveCamera = &camera;
 	m_ActiveScene = &scene;
 
-	if (frameIndex == 1)
+	if (frameIndex == 1) {
+		// clearing accumulationData
 		memset(accumulationData, 0, sizeof(glm::vec4) * m_FinalImage->GetWidth() * m_FinalImage->GetHeight());
+	}
 
 	for (uint32_t y = 0; y < m_FinalImage->GetHeight(); y++) {
 		for (uint32_t x = 0; x < m_FinalImage->GetWidth(); x++) {
@@ -66,8 +62,7 @@ void Renderer::Render(const Scene& scene, const Camera& camera)
 		frameIndex = 1;
 }
 
-glm::vec4 Renderer::PerPixel(uint32_t x, uint32_t y)
-{
+glm::vec4 Renderer::PerPixel(uint32_t x, uint32_t y) {
 	Ray ray;
 	ray.Origin = m_ActiveCamera->GetPosition();
 	ray.Direction = m_ActiveCamera->GetRayDirections()[x + y * m_FinalImage->GetWidth()];
@@ -115,8 +110,7 @@ Renderer::HitPayload Renderer::TraceRay(const Ray& ray) {
 			hitPayload = findRayParameterFromHit(ray, cylinder, i);
 			if (hitPayload.HitDistance == -1)
 				continue;
-		}
-		else if (shape->type == SPHERE) {
+		} else if (shape->type == SPHERE) {
 			const Sphere& sphere = *((Sphere*)shape);
 			hitPayload = findRayParameterFromHit(ray, sphere, i);
 			if (hitPayload.HitDistance == -1)
@@ -167,12 +161,10 @@ Renderer::HitPayload Renderer::findRayParameterFromHit(const Ray& ray, const Cyl
 			hitDistance = (cylinder.yMax - ray.Origin.y) / ray.Direction.y;
 			payload.WorldNormal = glm::vec3(0.0f, 1.0f, 0.0f);
 			rayTouchesTheSide = false;
-		}
-		else {
+		} else {
 			return payload;
 		}
-	}
-	else if (hitPoint.y < cylinder.yMin) {
+	} else if (hitPoint.y < cylinder.yMin) {
 		float t1 = (-b + glm::sqrt(discriminant)) / (2.0f * a);
 		glm::vec3 hitPointAtT1 = origin + ray.Direction * t1;
 		// we reached the bottom 
@@ -180,8 +172,7 @@ Renderer::HitPayload Renderer::findRayParameterFromHit(const Ray& ray, const Cyl
 			hitDistance = (cylinder.yMin - ray.Origin.y) / ray.Direction.y;
 			payload.WorldNormal = glm::vec3(0.0f, -1.0f, 0.0f);
 			rayTouchesTheSide = false;
-		}
-		else {
+		} else {
 			return payload;
 		}
 	}

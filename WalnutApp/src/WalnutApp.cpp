@@ -11,8 +11,7 @@
 
 using namespace Walnut;
 
-class ExampleLayer : public Walnut::Layer
-{
+class ExampleLayer : public Walnut::Layer {
 public:
 	ExampleLayer() : m_Camera(45.0f, 0.1f, 100.0f) {
 		Material& pinkSphere = m_Scene.materials.emplace_back();
@@ -39,7 +38,7 @@ public:
 			m_Scene.shapes.push_back(sphere);
 		}
 
-		/*{
+		{
 			Cylinder* cylinder = new Cylinder();
 			cylinder->Position = { 1.0f, 0.5f, -2.0f };
 			cylinder->radius = 0.3f;
@@ -47,17 +46,15 @@ public:
 			cylinder->yMin = 0.2f;
 			cylinder->yMax = 1.5f;
 			m_Scene.shapes.push_back(cylinder);
-		}*/
+		}
 	}
 
-	virtual void OnUpdate(float ts) override
-	{
+	virtual void OnUpdate(float ts) override {
 		if (m_Camera.OnUpdate(ts))
 			m_Renderer.ResetFrameIndex();
 	}
 
-	virtual void OnUIRender() override
-	{
+	virtual void OnUIRender() override {
 		ImGui::Begin("Settings");
 		ImGui::Text("Last render: %.3fms", m_LastRenderTime);
 		if (ImGui::Button("Render"))
@@ -71,8 +68,7 @@ public:
 		ImGui::End();
 
 		ImGui::Begin("Scene");
-		for (size_t i = 0; i < m_Scene.Spheres.size(); i++)
-		{
+		for (size_t i = 0; i < m_Scene.Spheres.size(); i++) {
 			ImGui::PushID(i);
 
 			Sphere& sphere = m_Scene.Spheres[i];
@@ -116,8 +112,7 @@ public:
 		Render();
 	}
 
-	void Render()
-	{
+	void Render() {
 		Timer timer;
 
 		m_Renderer.OnResize(m_ViewportWidth, m_ViewportHeight);
@@ -134,23 +129,19 @@ private:
 	float m_LastRenderTime = 0.0f;
 };
 
-Walnut::Application* Walnut::CreateApplication(int argc, char** argv)
-{
+Walnut::Application* Walnut::CreateApplication(int argc, char** argv) {
 	Walnut::ApplicationSpecification spec;
 	spec.Name = "Ray Tracing";
 
 	Walnut::Application* app = new Walnut::Application(spec);
 	app->PushLayer<ExampleLayer>();
-	app->SetMenubarCallback([app]()
-		{
-			if (ImGui::BeginMenu("File"))
-			{
-				if (ImGui::MenuItem("Exit"))
-				{
-					app->Close();
-				}
-				ImGui::EndMenu();
+	app->SetMenubarCallback([app]() {
+		if (ImGui::BeginMenu("File")) {
+			if (ImGui::MenuItem("Exit")) {
+				app->Close();
 			}
+			ImGui::EndMenu();
+		}
 		});
 	return app;
 }
